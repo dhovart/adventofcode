@@ -96,16 +96,17 @@ impl Game {
         })
     }
 
-    fn query_winning_board(&self) -> Option<&RefCell<Board>> {
+    fn query_winning_boards(&self) -> Vec<&RefCell<Board>> {
         let non_winning_boards: Vec<&RefCell<Board>> = self.boards.iter().filter(|board| !board.borrow().winning).collect();
+        let mut winning_boards: Vec<&RefCell<Board>> = Vec::new();
         for i in 0..non_winning_boards.len() {
             let mut board = non_winning_boards[i].borrow_mut();
             if board.has_winning_rows() || board.has_winning_cols() {
                 board.set_winning();
-                return Some(&non_winning_boards[i]);
+                winning_boards.push(non_winning_boards[i]);
             }
         }
-        None
+        return winning_boards;
     }
 
     fn get_drawn_number_at(&self, i: usize) -> i32 {
@@ -115,7 +116,7 @@ impl Game {
 
 fn main() {
     match parse_input("./input.txt") {
-        Ok(game) => println!("{:?}", part1(&game)),
+        Ok(game) => println!("{:?}", part2(&game)),
         Err(err) => println!("{}", err),
     };
 }
@@ -124,23 +125,28 @@ fn part1(game: &Game) -> i32 {
     for i in 0..game.drawn_numbers.len() {
         let number = game.drawn_numbers[i];
         game.draw(number);
-        if let Some(winning_board) = game.query_winning_board() {
-            return number * winning_board.borrow().get_undrawn_numbers_sum();
+        let winning_boards = game.query_winning_boards();
+        if winning_boards.len() > 0 {
+            return number * winning_boards[0].borrow().get_undrawn_numbers_sum();
         }
     }
     0
 }
 
 fn part2(game: &Game) -> i32 {
-    let mut winning_boards = vec![];
+    let mut winning_boards = Vec::new();
     let mut number = 0;
     for i in 0..game.drawn_numbers.len() {
         number = game.get_drawn_number_at(i);
         game.draw(number);
-        let possibly_winning_board: Option<&RefCell<Board>> = game.query_winning_board();
-        if let Some(winning_board) = possibly_winning_board {
-            winning_board.borrow_mut().set_winning();
-            winning_boards.push(winning_board);
+        let winning_boards_found: Vec<&RefCell<Board>> = game.query_winning_boards();
+        println!("len found {}",winning_boards_found.len());
+        winning_boards_found.into_iter().for_each(|board| {
+            board.borrow_mut().set_winning();
+            winning_boards.push(board);
+        });
+        if winning_boards.len() == game.boards.len() {
+            break;
         }
     }
     if let Some(last_winning_board) = winning_boards.last() {
